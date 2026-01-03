@@ -3,9 +3,13 @@ const cors = require('cors');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
-const PORT = 3000;
+
+// Use Render port in production, 3000 locally
+const PORT = process.env.PORT || 3000;
+
 
 // ===== DB SETUP =====
 const dbPath = path.join(__dirname, 'sanzad.db');
@@ -17,15 +21,23 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
+
 // ===== MIDDLEWARE =====
 app.use(cors());
 app.use(express.json());
 
-// serve uploaded files
+
+// Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Serve uploaded files
 app.use('/uploads', express.static(uploadsDir));
 
-// multer setup (disk storage)
+
+// Multer setup (disk storage)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
@@ -37,7 +49,9 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+
 // ===== PROJECTS ROUTES =====
+
 
 // Get all projects
 app.get('/api/projects', (req, res) => {
@@ -48,7 +62,7 @@ app.get('/api/projects', (req, res) => {
       return res.status(500).json({ error: 'DB error' });
     }
 
-    // best-effort parse media JSON
+    // Best-effort parse media JSON
     const projects = rows.map((row) => {
       let media = [];
       try {
@@ -62,6 +76,7 @@ app.get('/api/projects', (req, res) => {
     res.json(projects);
   });
 });
+
 
 // Create a new project (simple JSON path, no files)
 app.post('/api/projects', (req, res) => {
@@ -152,6 +167,7 @@ app.post('/api/projects', (req, res) => {
   );
 });
 
+
 // Get a single project
 app.get('/api/projects/:id', (req, res) => {
   const id = req.params.id;
@@ -181,7 +197,9 @@ app.get('/api/projects/:id', (req, res) => {
   });
 });
 
-// ===== PROJECT MEDIA ROUTES (existing citizen/admin uploads) =====
+
+// ===== PROJECT MEDIA ROUTES =====
+
 
 // Get media array for a project
 app.get('/api/projects/:id/media', (req, res) => {
@@ -208,7 +226,8 @@ app.get('/api/projects/:id/media', (req, res) => {
   });
 });
 
-// Upload single media file to existing project (citizen or admin)
+
+// Upload single media file to existing project
 app.post('/api/projects/:id/media', upload.single('file'), (req, res) => {
   const id = req.params.id;
   const file = req.file;
@@ -259,7 +278,9 @@ app.post('/api/projects/:id/media', upload.single('file'), (req, res) => {
   });
 });
 
+
 // ===== PROJECTS WITH GEOMETRY + FILES (ADMIN EDITOR) =====
+
 
 // Expect multipart/form-data with:
 // - project: JSON string containing all fields, including geometry + notes
@@ -267,7 +288,7 @@ app.post('/api/projects/:id/media', upload.single('file'), (req, res) => {
 // - designFiles[0..n]
 app.post(
   '/api/projects-with-files',
-  upload.any(), // accept any file fields; we'll filter by name
+  upload.any(),
   (req, res) => {
     try {
       if (!req.body.project) {
@@ -303,7 +324,7 @@ app.post(
         polygons,
       } = projectData;
 
-      // base geometry + metadata payload stored in media column
+      // Base geometry + metadata payload stored in media column
       const geometryPayload = {
         roadSurface: roadSurface || 'highway',
         roadGeometry: roadGeometry || [],
@@ -415,7 +436,9 @@ app.post(
   }
 );
 
+
 // ===== METRICS ROUTES =====
+
 
 // Simple summary metrics for dashboard
 app.get('/api/metrics/summary', (req, res) => {
@@ -461,7 +484,9 @@ app.get('/api/metrics/summary', (req, res) => {
   });
 });
 
+
 // ===== REPORTS ROUTES =====
+
 
 // List reports
 app.get('/api/reports', (req, res) => {
@@ -474,6 +499,7 @@ app.get('/api/reports', (req, res) => {
     res.json(rows);
   });
 });
+
 
 // Create report
 app.post('/api/reports', (req, res) => {
@@ -514,6 +540,7 @@ app.post('/api/reports', (req, res) => {
   );
 });
 
+
 // Update report status + leader note
 app.patch('/api/reports/:id/status', (req, res) => {
   const id = req.params.id;
@@ -544,7 +571,9 @@ app.patch('/api/reports/:id/status', (req, res) => {
   });
 });
 
+
 // ===== WARD NEEDS ROUTES =====
+
 
 // List all wards for a sector
 app.get('/api/ward-needs', (req, res) => {
@@ -563,6 +592,7 @@ app.get('/api/ward-needs', (req, res) => {
     res.json(rows);
   });
 });
+
 
 // Top N wards for a sector
 app.get('/api/ward-needs/top', (req, res) => {
@@ -584,7 +614,8 @@ app.get('/api/ward-needs/top', (req, res) => {
   });
 });
 
+
 // ===== START SERVER =====
 app.listen(PORT, () => {
-  console.log(`Sanzad backend listening on http://localhost:${PORT}`);
+  console.log(`Sanzad backend listening on port ${PORT}`);
 });
