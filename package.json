@@ -1,0 +1,15 @@
+{
+  "name": "sanzad-backend",
+  "version": "1.0.0",
+  "description": "Sanzad-Vue civic-tech backend with SQLite persistence",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.0",
+    "multer": "^2.0.2",
+    "sqlite3": "^5.1.7"
+  }
+}
